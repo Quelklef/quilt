@@ -3,7 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
 
-module Main where
+module Patch where
   
 import System.Directory (getDirectoryContents)
 import Control.Monad (join)
@@ -21,26 +21,30 @@ import Graphics.Image (readImageRGB, writeImage, toLists, maybeIndex, dims, inde
 import Graphics.Image.Interface (toComponents, fromComponents)
 import Graphics.Image.Types (Image, RGB, VU(..), Pixel)
 
-import Shared (Px, Img, firstJust)
-import qualified Patch
-import Quilt (makeQuilt, toImage)
+import Shared (Img)
 
-main :: IO ()
-main = do
+type Patch = (Int, Int, Img)
 
-  imgPaths <-
-    getDirectoryContents "./img"
-    <&> filter (not . startsWith ".")
-    <&> fmap ("./img/" <>)
+left :: Patch -> Int
+left (_, ox, _) = ox
 
-  for imgPaths $ putStrLn . ("Found image: " <>)
+right :: Patch -> Int
+right (_, ox, img) = ox + rows img
 
-  imgs <- sequence $ readImageRGB VU <$> imgPaths
+top :: Patch -> Int
+top (oy, _, _) = oy
 
-  quilt <- makeQuilt 10000 5000 imgs
-  writeImage "quilt.png" (toImage quilt)
+bottom :: Patch -> Int
+bottom (oy, _, img) = oy + cols img
 
-  putStrLn "ok"
+topEdge :: Patch -> [(Int, Int)]
+topEdge (oy, ox, img) = [0 .. cols img - 1] <&> \i -> (oy, ox + i)
 
- where
-  startsWith = isPrefixOf
+rightEdge :: Patch -> [(Int, Int)]
+rightEdge (oy, ox, img) = [0 .. rows img - 1] <&> \i -> (oy + i, ox + cols img)
+
+bottomEdge :: Patch -> [(Int, Int)]
+bottomEdge (oy, ox, img) = [0 .. cols img - 1] <&> \i -> (oy + rows img, ox + i)
+
+leftEdge :: Patch -> [(Int, Int)]
+leftEdge (oy, ox, img) = [0 .. rows img - 1] <&> \i -> (oy + i, ox)

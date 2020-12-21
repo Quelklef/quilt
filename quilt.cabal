@@ -13,3 +13,6 @@ executable quilt
                      , directory
                      , containers
                      , multiset
+  other-modules:       Shared
+                     , Patch
+                     , Quilt
