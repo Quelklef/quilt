@@ -22,8 +22,9 @@ main = do
   imgs <- sequence $ readImageRGB VU <$> imgPaths
 
   let quilt = makeQuilt 10000 5000 imgs
-  writeImage "quilt.png" (toImage quilt)
+  putStrLn "Quilted!"
 
+  writeImage "quilt.png" (toImage quilt)
   putStrLn "ok"
 
  where

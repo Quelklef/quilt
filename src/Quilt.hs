@@ -4,11 +4,12 @@ import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
 import Data.List (sortOn)
+import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, border)
+import Shared (Img, Px, firstJust, likeness, border, borderPixels, BorderPoint(..), safeHead, Border)
 import Patch (Patch(..))
 import qualified Patch
 
@@ -17,8 +18,8 @@ data Quilt = Quilt { rows :: Int, cols :: Int, patches :: [Patch] }
 dims :: Quilt -> (Int, Int)
 dims = (,) <$> rows <*> cols
 
-add :: (Int, Int) -> Img -> Quilt -> Quilt
-add (y, x) img quilt = quilt { patches = Patch (y, x) img : patches quilt }
+add :: Patch -> Quilt -> Quilt
+add patch quilt = quilt { patches = patch : patches quilt }
 
 overlapsAnything :: Patch -> Quilt -> Bool
 overlapsAnything patch quilt = any (overlapping patch) (patches quilt)
@@ -45,20 +46,22 @@ full = (0 ==) . freeSpace
 empty :: Quilt -> Bool
 empty = null . patches
 
-get :: Int -> Int -> Quilt -> Maybe Px
-get y x quilt = patches quilt <&> (\(Patch (ox, oy) img) -> maybeIndex img (y - oy, x - ox)) & firstJust
+get :: (Int, Int) -> Quilt -> Maybe Px
+get point quilt = patches quilt <&> (\(Patch offset img) -> maybeIndex img (point - offset)) & firstJust
 
-get' :: Int -> Int -> Quilt -> Px
-get' y x quilt = get y x quilt & fromMaybe (fromComponents (0, 0, 0))
+get' :: (Int, Int) -> Quilt -> Px
+get' point quilt = get point quilt & fromMaybe (fromComponents (0, 0, 0))
 
 toImage :: Quilt -> Img
-toImage quilt = makeImage (dims quilt) (\(y, x) -> get' y x quilt)
+toImage quilt = makeImage (dims quilt) (\point -> get' point quilt)
 
+quiltBorder :: Quilt -> Border
+quiltBorder quilt = patches quilt >>= (border . Patch.image)
 
 makeQuilt :: Int -> Int -> [Img] -> Quilt
 makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
   where
-    popularity this = sum $ imgs <&> \that -> likeness (border this) (border that)
+    popularity this = sum $ imgs <&> \that -> likeness (borderPixels this) (borderPixels that)
 
     placeImgs :: [Img] -> Quilt -> Quilt
     placeImgs [] quilt = quilt
@@ -73,41 +76,25 @@ placeImg img quilt
   -- place in center
   | empty quilt = let oy = (rows quilt - Img.rows img) `div` 2
                       ox = (cols quilt - Img.cols img) `div` 2
-                  in add (oy, ox) img quilt
+                  in add (Patch (oy, ox) img) quilt
+
   -- attach to outside of existing quilt
   | otherwise =
-      (borderChunks quilt <&> \chunk -> placeAlong chunk) & firstJust & fromMaybe quilt
+      do
+        borderPoint <- quiltBorder quilt
+        guard $ not . totallyEnclosed $ borderPoint
+        let patch = Patch.fixImageToBorderPoint borderPoint img
+        guard $ not . overlapsAnyExistingPatches $ patch
+        return $ add patch quilt
+      & safeHead
+      & fromMaybe quilt
+
   where
-    placeAlong :: BorderChunk -> Maybe Quilt
-    placeAlong chunk@(BorderChunk _ locs) =
-      firstJust $ locs <&> (\loc ->
-        case calcOffsetGivenBorderChunk chunk loc of
-          (oy, ox) ->
-            let patch = Patch (oy, ox) img
-            in if overlapsAnything patch quilt
-               then Nothing
-               else Just $ add (oy, ox) img quilt)
+    overlapsAnyExistingPatches :: Patch -> Bool
+    overlapsAnyExistingPatches patch = patches quilt & any (Patch.overlaps patch)
 
-    calcOffsetGivenBorderChunk chunk (y, x) =
-      case chunk of
-        BorderChunk OutUp _ -> (y - Img.rows img, x)
-        BorderChunk OutRight _ -> (y, x)
-        BorderChunk OutDown _ -> (y, x)
-        BorderChunk OutLeft _ -> (y - Img.rows img, x - Img.cols img)
-
-data BorderChunk = BorderChunk OutDir [(Int, Int)]
-data OutDir = OutLeft | OutUp | OutRight | OutDown
-
-borderChunks :: Quilt -> [BorderChunk]
-borderChunks quilt = patches quilt >>= patchBorderChunks
-  where
-    patchBorderChunks patch@(Patch _ img) =
-      [ BorderChunk OutLeft (Patch.leftEdge patch)
-      , BorderChunk OutUp (Patch.topEdge patch)
-      , BorderChunk OutRight (Patch.rightEdge patch)
-      , BorderChunk OutDown (Patch.bottomEdge patch)
-      ] & filter (not . borderChunkEnclosed)
+    totallyEnclosed :: BorderPoint -> Bool
+    totallyEnclosed (BorderPoint _ (y, x)) = neighbors & all alreadyInQuilt
       where
-        borderChunkEnclosed (BorderChunk _ locs) = locs & all totallyEnclosed
-        totallyEnclosed (y, x) = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
-                                 & all (\neighbor -> maybeIndex img neighbor /= Nothing)
+        neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
+        alreadyInQuilt point = get point quilt /= Nothing
