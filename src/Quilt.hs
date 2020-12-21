@@ -8,7 +8,7 @@ import Graphics.Image (maybeIndex, makeImage, rows, cols)
 import Graphics.Image.Interface (fromComponents)
 
 import Shared (Img, Px, firstJust, likeness, border, swap)
-import Patch (Patch)
+import Patch (Patch(..))
 import qualified Patch
 
 data Quilt = Quilt { qdims :: (Int, Int), qpatches :: [Patch] }
@@ -20,7 +20,7 @@ qcols :: Quilt -> Int
 qcols = snd . qdims
 
 add :: (Int, Int) -> Img -> Quilt -> Quilt
-add (y, x) img quilt = quilt { qpatches = (y, x, img) : qpatches quilt }
+add (y, x) img quilt = quilt { qpatches = Patch (y, x) img : qpatches quilt }
 
 overlapsAnything :: Patch -> Quilt -> Bool
 overlapsAnything patch quilt = any (overlapping patch) (qpatches quilt)
@@ -32,10 +32,11 @@ area quilt = uncurry (*) (qdims quilt)
 
 takenSpace :: Quilt -> Int
 takenSpace quilt = sum $ spaceTaken <$> qpatches quilt
-  where spaceTaken (ox, oy, img) = (rows img - (max 0 $ negate ox)
-                                             - (max 0 $ ox + rows img - qrows quilt))
-                                 + (cols img - (max 0 $ negate oy)
-                                             - (max 0 $ oy + cols img - qcols quilt))
+  where spaceTaken (Patch (ox, oy) img) =
+            (rows img - (max 0 $ negate ox)
+                      - (max 0 $ ox + rows img - qrows quilt))
+          + (cols img - (max 0 $ negate oy)
+                      - (max 0 $ oy + cols img - qcols quilt))
 
 freeSpace :: Quilt -> Int
 freeSpace quilt = area quilt - takenSpace quilt
@@ -47,7 +48,7 @@ empty :: Quilt -> Bool
 empty = null . qpatches
 
 get :: Int -> Int -> Quilt -> Maybe Px
-get y x quilt = qpatches quilt <&> (\(ox, oy, img) -> maybeIndex img (y - oy, x - ox)) & firstJust
+get y x quilt = qpatches quilt <&> (\(Patch (ox, oy) img) -> maybeIndex img (y - oy, x - ox)) & firstJust
 
 get' :: Int -> Int -> Quilt -> Px
 get' y x quilt = get y x quilt & fromMaybe (fromComponents (0, 0, 0))
@@ -86,7 +87,7 @@ placeImg img quilt
       firstJust $ locs <&> (\loc ->
         case calcOffsetGivenBorderChunk chunk loc of
           (oy, ox) ->
-            let patch = (oy, ox, img)
+            let patch = Patch (oy, ox) img
             in if overlapsAnything patch quilt
                then Nothing
                else Just $ add (oy, ox) img quilt)
@@ -104,7 +105,7 @@ data OutDir = OutLeft | OutUp | OutRight | OutDown
 borderChunks :: Quilt -> [BorderChunk]
 borderChunks quilt = qpatches quilt >>= patchBorderChunks
   where
-    patchBorderChunks patch@(_oy, _ox, img) =
+    patchBorderChunks patch@(Patch _ img) =
       [ BorderChunk OutLeft (Patch.leftEdge patch)
       , BorderChunk OutUp (Patch.topEdge patch)
       , BorderChunk OutRight (Patch.rightEdge patch)
