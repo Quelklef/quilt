@@ -7,7 +7,15 @@ import Data.Foldable (for_)
 import Graphics.Image (readImageRGB, writeImage)
 import Graphics.Image.Types (VU(VU))
 
-import Quilt (makeQuilt, toImage)
+import Control.DeepSeq (NFData, force)
+import Control.Exception (evaluate)
+
+import Quilt (makeQuilt, toImage, drawBorders)
+import qualified Quilt
+
+-- Evaluate a value strictly
+now :: NFData a => a -> IO a
+now = evaluate . force
 
 main :: IO ()
 main = do
@@ -19,13 +27,21 @@ main = do
 
   for_ imgPaths $ putStrLn . ("Found image: " <>)
 
+  putStrLn "Loading images..."
   imgs <- sequence $ readImageRGB VU <$> imgPaths
 
-  let quilt = makeQuilt 10000 5000 imgs
-  putStrLn "Quilted!"
+  putStrLn "Quilting..."
+  quilt <- now $ makeQuilt 5000 2500 imgs
 
-  writeImage "quilt.png" (toImage quilt)
-  putStrLn "ok"
+  putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
+
+  putStrLn "Drawing borders..."
+  withBorders <- now $ drawBorders quilt
+
+  putStrLn "Writing to file..."
+  writeImage "quilt.png" (toImage $ withBorders)
+
+  putStrLn "All done!"
 
  where
   startsWith = isPrefixOf

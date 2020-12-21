@@ -55,9 +55,9 @@ likeness pxs1 pxs2 = negate dissimilarity
           (r2, g2, b2) = toComponents px2
       in abs (r1 - r2) + abs (g1 - g2) + abs (b1 - b2)
 
--- Border of an image, starting top-left and proceeding counter-clockwise
+-- Border of an image, starting top-left and proceeding clockwise
 border :: Img -> Border
-border img = [0 .. 2 * (height + width) - 4 - 1] <&> mkBorderPoint
+border img = reverse $ [0 .. 2 * (height + width) - 4 - 1] <&> mkBorderPoint
   where
     (height, width) = dims img
     mkBorderPoint idx

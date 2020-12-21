@@ -1,19 +1,27 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Quilt where
-  
+
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.List (sortOn)
 import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, border, borderPixels, BorderPoint(..), safeHead, Border)
+import Shared (Img, Px, firstJust, likeness, borderPixels, BorderPoint(..), safeHead, Border)
 import Patch (Patch(..))
 import qualified Patch
 
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
+
 data Quilt = Quilt { rows :: Int, cols :: Int, patches :: [Patch] }
+  deriving (Generic)
+
+instance NFData Quilt
 
 dims :: Quilt -> (Int, Int)
 dims = (,) <$> rows <*> cols
@@ -56,7 +64,53 @@ toImage :: Quilt -> Img
 toImage quilt = makeImage (dims quilt) (\point -> get' point quilt)
 
 quiltBorder :: Quilt -> Border
-quiltBorder quilt = patches quilt >>= (border . Patch.image)
+quiltBorder quilt =
+  do
+    patch <- patches quilt
+    borderPoint <- Patch.border patch
+    guard $ not . totallyEnclosed $ borderPoint
+    return borderPoint
+  where
+    totallyEnclosed :: BorderPoint -> Bool
+    totallyEnclosed (BorderPoint _ (y, x)) = all alreadyInQuilt neighbors
+      where
+        neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
+        alreadyInQuilt point = get point quilt /= Nothing
+
+-- Draws a box around the patches, for debugging purposes
+-- Colors: Red=Up, Green=Right, Blue=Down, Yellow=Left
+drawBox :: Quilt -> Quilt
+drawBox quilt = quilt { patches = borderPatches ++ patches quilt }
+  where
+    thick = 8
+    halfk = thick `div` 2
+    borderPatches = patches quilt >>= \(Patch (yOffset, xOffset) img) ->
+      [ Patch (yOffset - halfk, xOffset) $ makeImage (thick, Img.cols img) (const $ fromComponents (255, 0, 0))
+      , Patch (yOffset, xOffset + Img.cols img - halfk) $ makeImage (Img.rows img, thick) (const $ fromComponents (0, 255, 0))
+      , Patch (yOffset + Img.rows img - halfk, xOffset) $ makeImage (thick, Img.cols img) (const $ fromComponents (0, 0, 255))
+      , Patch (yOffset - halfk, xOffset) $ makeImage (Img.rows img, thick) (const $ fromComponents (255, 255, 0))
+      ]
+
+-- Draws the patches' borders, for debugging purposes
+drawBorders :: Quilt -> Quilt
+drawBorders quilt = quilt { patches = borderPatches ++ patches quilt }
+  where
+    thick = 16
+    redDot = makeImage (thick, thick) (const $ fromComponents (255, 0, 0))
+    borderPatches =
+      patches quilt
+      >>= Patch.border
+      & fmap (\(BorderPoint _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
+      & everyNth 150
+
+    everyNth :: Int -> [a] -> [a]
+    everyNth n xs = xs & mapWithIndex (\i x -> if i `mod` n == 0 then Just x else Nothing) & catMaybes
+
+    mapWithIndex :: (Int -> a -> b) -> [a] -> [b]
+    mapWithIndex = mapWithIndexAux 0
+      where
+        mapWithIndexAux _ _ [] = []
+        mapWithIndexAux i f (x:xs) = f i x : mapWithIndexAux (i + 1) f xs
 
 makeQuilt :: Int -> Int -> [Img] -> Quilt
 makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
@@ -82,19 +136,9 @@ placeImg img quilt
   | otherwise =
       do
         borderPoint <- quiltBorder quilt
-        guard $ not . totallyEnclosed $ borderPoint
         let patch = Patch.fixImageToBorderPoint borderPoint img
-        guard $ not . overlapsAnyExistingPatches $ patch
+        let isOverlapping = patches quilt & any (Patch.overlaps patch)
+        guard $ not isOverlapping
         return $ add patch quilt
       & safeHead
       & fromMaybe quilt
-
-  where
-    overlapsAnyExistingPatches :: Patch -> Bool
-    overlapsAnyExistingPatches patch = patches quilt & any (Patch.overlaps patch)
-
-    totallyEnclosed :: BorderPoint -> Bool
-    totallyEnclosed (BorderPoint _ (y, x)) = neighbors & all alreadyInQuilt
-      where
-        neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
-        alreadyInQuilt point = get point quilt /= Nothing

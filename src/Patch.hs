@@ -1,17 +1,37 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Patch where
-  
+
 import Graphics.Image (rows, cols)
 
-import Shared (Img, BorderPoint(..), OutwardsIs(..), Img)
+import Data.Functor ((<&>))
+
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
+
+import Shared (Img, BorderPoint(..), OutwardsIs(..), Img, Border, BorderPoint(..))
+import qualified Shared
 
 -- An offset image
 data Patch = Patch (Int, Int) Img
+  deriving (Generic)
+
+instance NFData Patch
 
 offset ::  Patch -> (Int, Int)
 offset (Patch ost _) = ost
 
+yOffset ::  Patch -> Int
+yOffset = fst . offset
+
+xOffset ::  Patch -> Int
+xOffset = snd . offset
+
 image :: Patch -> Img
 image (Patch _ img) = img
+
+border :: Patch -> Border
+border patch = Shared.border (image patch) <&> (\(BorderPoint outwardsIs point) -> BorderPoint outwardsIs (offset patch + point))
 
 overlaps :: Patch -> Patch -> Bool
 overlaps p1 p2 = bottom p1 >= top p2 && top p1 <= bottom p2
@@ -25,14 +45,14 @@ fixImageToBorderPoint (BorderPoint outwardsIs (y, x)) img =
     OutwardsIsDown -> Patch (y, x) img
     OutwardsIsLeft -> Patch (y - rows img, x - cols img) img
 
-left :: Patch -> Int
-left (Patch (_, ox) _) = ox
+top :: Patch -> Int
+top (Patch (oy, _) _) = oy
 
 right :: Patch -> Int
 right (Patch (_, ox) img) = ox + rows img
 
-top :: Patch -> Int
-top (Patch (oy, _) _) = oy
-
 bottom :: Patch -> Int
 bottom (Patch (oy, _) img) = oy + cols img
+
+left :: Patch -> Int
+left (Patch (_, ox) _) = ox
