@@ -69,7 +69,7 @@ quiltBorder quilt =
     patch <- patches quilt
     borderPoint <- Patch.border patch
     guard $ not . totallyEnclosed $ borderPoint
-    guard $ inBounds borderPoint
+    guard $ distFromEdge borderPoint > 0
     return borderPoint
   where
     totallyEnclosed (BorderPoint _ (y, x)) = all alreadyInQuilt neighbors
@@ -77,7 +77,7 @@ quiltBorder quilt =
         neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
         alreadyInQuilt point = get point quilt /= Nothing
 
-    inBounds (BorderPoint _ (y, x)) = y >= 0 && y < rows quilt && x >= 0 && x < cols quilt
+    distFromEdge (BorderPoint _ (y, x)) = minimum [y, rows quilt - y - 1, x, cols quilt - x - 1]
 
 -- Draws a box around the patches, for debugging purposes
 -- Colors: Red=Up, Green=Right, Blue=Down, Yellow=Left
@@ -103,7 +103,7 @@ drawBorders quilt = quilt { patches = borderPatches ++ patches quilt }
       patches quilt
       >>= Patch.border
       & fmap (\(BorderPoint _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
-      & everyNth 150
+      & everyNth 200
 
     everyNth :: Int -> [a] -> [a]
     everyNth n xs = xs & mapWithIndex (\i x -> if i `mod` n == 0 then Just x else Nothing) & catMaybes
