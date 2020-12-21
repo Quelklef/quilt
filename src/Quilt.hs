@@ -4,39 +4,37 @@ import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
 import Data.List (sortOn)
-import Graphics.Image (maybeIndex, makeImage, rows, cols)
+import Graphics.Image (maybeIndex, makeImage)
+import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, border, swap)
+import Shared (Img, Px, firstJust, likeness, border)
 import Patch (Patch(..))
 import qualified Patch
 
-data Quilt = Quilt { qdims :: (Int, Int), qpatches :: [Patch] }
+data Quilt = Quilt { rows :: Int, cols :: Int, patches :: [Patch] }
 
-qrows :: Quilt -> Int
-qrows = fst . qdims
-
-qcols :: Quilt -> Int
-qcols = snd . qdims
+dims :: Quilt -> (Int, Int)
+dims = (,) <$> rows <*> cols
 
 add :: (Int, Int) -> Img -> Quilt -> Quilt
-add (y, x) img quilt = quilt { qpatches = Patch (y, x) img : qpatches quilt }
+add (y, x) img quilt = quilt { patches = Patch (y, x) img : patches quilt }
 
 overlapsAnything :: Patch -> Quilt -> Bool
-overlapsAnything patch quilt = any (overlapping patch) (qpatches quilt)
+overlapsAnything patch quilt = any (overlapping patch) (patches quilt)
   where overlapping patch1 patch2 = Patch.bottom patch1 >= Patch.top patch2 && Patch.top patch1 <= Patch.bottom patch2
                                  && Patch.right patch1 >= Patch.left patch2 && Patch.left patch1 <= Patch.right patch2
 
 area :: Quilt -> Int
-area quilt = uncurry (*) (qdims quilt)
+area quilt = uncurry (*) (dims quilt)
 
 takenSpace :: Quilt -> Int
-takenSpace quilt = sum $ spaceTaken <$> qpatches quilt
+takenSpace quilt = sum $ spaceTaken <$> patches quilt
   where spaceTaken (Patch (ox, oy) img) =
-            (rows img - (max 0 $ negate ox)
-                      - (max 0 $ ox + rows img - qrows quilt))
-          + (cols img - (max 0 $ negate oy)
-                      - (max 0 $ oy + cols img - qcols quilt))
+            (Img.rows img - (max 0 $ negate ox)
+                          - (max 0 $ ox + Img.rows img - rows quilt))
+          + (Img.cols img - (max 0 $ negate oy)
+                          - (max 0 $ oy + Img.cols img - cols quilt))
 
 freeSpace :: Quilt -> Int
 freeSpace quilt = area quilt - takenSpace quilt
@@ -45,20 +43,20 @@ full :: Quilt -> Bool
 full = (0 ==) . freeSpace
 
 empty :: Quilt -> Bool
-empty = null . qpatches
+empty = null . patches
 
 get :: Int -> Int -> Quilt -> Maybe Px
-get y x quilt = qpatches quilt <&> (\(Patch (ox, oy) img) -> maybeIndex img (y - oy, x - ox)) & firstJust
+get y x quilt = patches quilt <&> (\(Patch (ox, oy) img) -> maybeIndex img (y - oy, x - ox)) & firstJust
 
 get' :: Int -> Int -> Quilt -> Px
 get' y x quilt = get y x quilt & fromMaybe (fromComponents (0, 0, 0))
 
 toImage :: Quilt -> Img
-toImage quilt = makeImage (qdims quilt) (\(y, x) -> get' y x quilt)
+toImage quilt = makeImage (dims quilt) (\(y, x) -> get' y x quilt)
 
 
 makeQuilt :: Int -> Int -> [Img] -> IO Quilt
-makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt (swap {- <-- TODO FIX -} (height, width)) [])
+makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
   where
     popularity this = sum $ imgs <&> \that -> likeness (border this) (border that)
 
@@ -75,8 +73,8 @@ makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt (swap {-
 placeImg :: Img -> Quilt -> Quilt
 placeImg img quilt
   -- place in center
-  | empty quilt = let oy = (qrows quilt - rows img) `div` 2
-                      ox = (qcols quilt - cols img) `div` 2
+  | empty quilt = let oy = (rows quilt - Img.rows img) `div` 2
+                      ox = (cols quilt - Img.cols img) `div` 2
                   in add (oy, ox) img quilt
   -- attach to outside of existing quilt
   | otherwise =
@@ -94,16 +92,16 @@ placeImg img quilt
 
     calcOffsetGivenBorderChunk chunk (y, x) =
       case chunk of
-        BorderChunk OutUp _ -> (y - rows img, x)
+        BorderChunk OutUp _ -> (y - Img.rows img, x)
         BorderChunk OutRight _ -> (y, x)
         BorderChunk OutDown _ -> (y, x)
-        BorderChunk OutLeft _ -> (y - rows img, x - cols img)
+        BorderChunk OutLeft _ -> (y - Img.rows img, x - Img.cols img)
 
 data BorderChunk = BorderChunk OutDir [(Int, Int)]
 data OutDir = OutLeft | OutUp | OutRight | OutDown
 
 borderChunks :: Quilt -> [BorderChunk]
-borderChunks quilt = qpatches quilt >>= patchBorderChunks
+borderChunks quilt = patches quilt >>= patchBorderChunks
   where
     patchBorderChunks patch@(Patch _ img) =
       [ BorderChunk OutLeft (Patch.leftEdge patch)

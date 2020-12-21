@@ -18,9 +18,6 @@ firstJust [] = Nothing
 firstJust (Nothing : xs) = firstJust xs
 firstJust (Just x : _) = Just x
 
-swap :: (a, b) -> (b, a)
-swap (a, b) = (b, a)
-
 type Px = Pixel RGB Double
 type Img = Image VU RGB Double
 
