@@ -11,12 +11,14 @@ import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, borderPixels, BorderPoint(..), safeHead, Border)
+import Shared (Img, Px, firstJust, likeness, borderPixels, BorderPoint(..), Border)
 import Patch (Patch(..))
 import qualified Patch
 
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
+
+import Debug.Trace
 
 data Quilt = Quilt { rows :: Int, cols :: Int, patches :: [Patch] }
   deriving (Generic)
@@ -141,6 +143,23 @@ placeImg img quilt
         let patch = Patch.attachImage anchor img
         let isOverlapping = patches quilt & any (Patch.overlaps patch)
         guard $ not isOverlapping
-        return $ add patch quilt
-      & safeHead
-      & fromMaybe quilt
+        return patch
+      & maximumOn adjacencies
+      & (\patch -> trace ("Patched: " <> show img) patch)
+      & maybe quilt (\patch -> add patch quilt)
+
+  where
+    adjacencies patch = length . filter (uncurry adjacent) $ quiltBorder quilt `times` Patch.border patch
+    adjacent (BorderPoint _ (y1, x1)) (BorderPoint _ (y2, x2)) = 1 == abs (y2 - y1) + abs (x2 - x1)
+    xs `times` ys = xs >>= \x -> ys >>= \y -> return (x, y)
+
+    maximumOn :: Ord k => (v -> k) -> [v] -> Maybe v
+    maximumOn _ [] = Nothing
+    maximumOn _ [x] = Just x
+    maximumOn key (x:y:zs) = maximumOnAux key (maxOn key x y) zs
+      where
+        maximumOnAux :: Ord k => (v -> k) -> v -> [v] -> Maybe v
+        maximumOnAux _ hi [] = Just hi
+        maximumOnAux key' hi (a:as) = maximumOnAux key' (maxOn key' a hi) as
+
+        maxOn key' a b = if key' a > key' b then a else b

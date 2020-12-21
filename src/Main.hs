@@ -29,11 +29,12 @@ main = do
 
   putStrLn "Loading images..."
   imgs <- sequence $ readImageRGB VU <$> imgPaths
+  putStrLn $ "Loaded " <> show (length imgs) <> " images."
 
   putStrLn "Quilting..."
   quilt <- now $ makeQuilt 5000 2500 imgs
 
-  putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
+  putStrLn $ "Used " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
   --putStrLn "Drawing borders..."
   --withBorders <- now $ Quilt.drawBorders quilt
