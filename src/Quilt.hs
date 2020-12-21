@@ -69,13 +69,15 @@ quiltBorder quilt =
     patch <- patches quilt
     borderPoint <- Patch.border patch
     guard $ not . totallyEnclosed $ borderPoint
+    guard $ inBounds borderPoint
     return borderPoint
   where
-    totallyEnclosed :: BorderPoint -> Bool
     totallyEnclosed (BorderPoint _ (y, x)) = all alreadyInQuilt neighbors
       where
         neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
         alreadyInQuilt point = get point quilt /= Nothing
+
+    inBounds (BorderPoint _ (y, x)) = y >= 0 && y < rows quilt && x >= 0 && x < cols quilt
 
 -- Draws a box around the patches, for debugging purposes
 -- Colors: Red=Up, Green=Right, Blue=Down, Yellow=Left
