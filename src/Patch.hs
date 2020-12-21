@@ -1,25 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
-
 module Patch where
   
-import System.Directory (getDirectoryContents)
-import Control.Monad (join)
-import Data.Function ((&), on)
 import Data.Functor ((<&>))
-import Data.Either (partitionEithers)
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.List (isPrefixOf, (\\), sortBy, sortOn)
-import qualified Data.MultiSet as MultiSet
-import Data.MultiSet (MultiSet)
-import qualified Data.Map as Map
-import Data.Map (Map)
-import Data.Traversable (for)
-import Graphics.Image (readImageRGB, writeImage, toLists, maybeIndex, dims, index, makeImage, rows, cols)
-import Graphics.Image.Interface (toComponents, fromComponents)
-import Graphics.Image.Types (Image, RGB, VU(..), Pixel)
+import Graphics.Image (rows, cols)
 
 import Shared (Img)
 

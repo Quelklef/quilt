@@ -1,29 +1,25 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Shared where
 
-import System.Directory (getDirectoryContents)
-import Control.Monad (join)
-import Data.Function ((&), on)
+import Data.Function (on)
 import Data.Functor ((<&>))
-import Data.Either (partitionEithers)
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.List (isPrefixOf, (\\), sortBy, sortOn)
 import qualified Data.MultiSet as MultiSet
 import Data.MultiSet (MultiSet)
-import qualified Data.Map as Map
-import Data.Map (Map)
-import Data.Traversable (for)
-import Graphics.Image (readImageRGB, writeImage, toLists, maybeIndex, dims, index, makeImage, rows, cols)
-import Graphics.Image.Interface (toComponents, fromComponents)
+import Graphics.Image (toLists, dims, index)
+import Graphics.Image.Interface (toComponents)
 import Graphics.Image.Types (Image, RGB, VU(..), Pixel)
 
+firstJust :: [Maybe a] -> Maybe a
 firstJust [] = Nothing
 firstJust (Nothing : xs) = firstJust xs
 firstJust (Just x : _) = Just x
+
+swap :: (a, b) -> (b, a)
+swap (a, b) = (b, a)
 
 type Px = Pixel RGB Double
 type Img = Image VU RGB Double
@@ -35,9 +31,8 @@ instance Ord Img where
   compare = compare `on` toLists
 
 likeness :: MultiSet Px -> MultiSet Px -> Double
-likeness pxs1 pxs2 = likeness
+likeness pxs1 pxs2 = negate dissimilarity
   where
-    likeness = negate dissimilarity
     dissimilarity = sum $ MultiSet.map (distanceToClosest pxs2) pxs1
     distanceToClosest pxs px = minimum $ MultiSet.map (pixelDissimilarity px) pxs
     pixelDissimilarity :: Px -> Px -> Double

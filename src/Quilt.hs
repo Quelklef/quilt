@@ -1,28 +1,14 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
-
 module Quilt where
   
-import System.Directory (getDirectoryContents)
-import Control.Monad (join)
-import Data.Function ((&), on)
+import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Either (partitionEithers)
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.List (isPrefixOf, (\\), sortBy, sortOn)
-import qualified Data.MultiSet as MultiSet
-import Data.MultiSet (MultiSet)
-import qualified Data.Map as Map
-import Data.Map (Map)
-import Data.Traversable (for)
-import Graphics.Image (readImageRGB, writeImage, toLists, maybeIndex, dims, index, makeImage, rows, cols)
-import Graphics.Image.Interface (toComponents, fromComponents)
-import Graphics.Image.Types (Image, RGB, VU(..), Pixel)
+import Data.Maybe (fromMaybe)
+import Data.List (sortOn)
+import Graphics.Image (maybeIndex, makeImage, rows, cols)
+import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, border)
-import Patch (Patch(..))
+import Shared (Img, Px, firstJust, likeness, border, swap)
+import Patch (Patch)
 import qualified Patch
 
 data Quilt = Quilt { qdims :: (Int, Int), qpatches :: [Patch] }
@@ -69,7 +55,6 @@ get' y x quilt = get y x quilt & fromMaybe (fromComponents (0, 0, 0))
 toImage :: Quilt -> Img
 toImage quilt = makeImage (qdims quilt) (\(y, x) -> get' y x quilt)
 
-swap (a, b) = (b, a)
 
 makeQuilt :: Int -> Int -> [Img] -> IO Quilt
 makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt (swap {- <-- TODO FIX -} (height, width)) [])
@@ -78,11 +63,11 @@ makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt (swap {-
 
     placeImgs :: [Img] -> Quilt -> IO Quilt
     placeImgs [] quilt = return quilt
-    placeImgs (img:imgs) quilt
+    placeImgs (img:restImgs) quilt
       | full quilt = return quilt
       | otherwise = do
         putStrLn "Placing image ..."
-        placeImg img quilt & placeImgs imgs
+        placeImg img quilt & placeImgs restImgs
 
 -- Attempt to place a patch onto the quilt, matching borders as well as possible.
 -- If unable to fit the whole thing, returns the quilt unchanged.
@@ -119,7 +104,7 @@ data OutDir = OutLeft | OutUp | OutRight | OutDown
 borderChunks :: Quilt -> [BorderChunk]
 borderChunks quilt = qpatches quilt >>= patchBorderChunks
   where
-    patchBorderChunks patch@(oy, ox, img) =
+    patchBorderChunks patch@(_oy, _ox, img) =
       [ BorderChunk OutLeft (Patch.leftEdge patch)
       , BorderChunk OutUp (Patch.topEdge patch)
       , BorderChunk OutRight (Patch.rightEdge patch)
