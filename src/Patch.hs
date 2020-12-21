@@ -35,7 +35,7 @@ border patch = Shared.border (image patch) <&> (\(BorderPoint outwardsIs point) 
 
 overlaps :: Patch -> Patch -> Bool
 overlaps p1 p2 = bottom p1 >= top p2 && top p1 <= bottom p2
-              || right p1 >= left p2 && left p1 <= right p2
+              && right p1 >= left p2 && left p1 <= right p2
 
 fixImageToBorderPoint :: BorderPoint -> Img -> Patch
 fixImageToBorderPoint (BorderPoint outwardsIs (y, x)) img =
