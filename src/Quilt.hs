@@ -135,8 +135,8 @@ placeImg img quilt
   -- attach to outside of existing quilt
   | otherwise =
       do
-        borderPoint <- quiltBorder quilt
-        let patch = Patch.fixImageToBorderPoint borderPoint img
+        anchor <- quiltBorder quilt
+        let patch = Patch.attachImage anchor img
         let isOverlapping = patches quilt & any (Patch.overlaps patch)
         guard $ not isOverlapping
         return $ add patch quilt

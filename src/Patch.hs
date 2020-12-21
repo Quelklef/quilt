@@ -37,13 +37,14 @@ overlaps :: Patch -> Patch -> Bool
 overlaps p1 p2 = bottom p1 >= top p2 && top p1 <= bottom p2
               && right p1 >= left p2 && left p1 <= right p2
 
-fixImageToBorderPoint :: BorderPoint -> Img -> Patch
-fixImageToBorderPoint (BorderPoint outwardsIs (y, x)) img =
+-- Turns the given image into a patch adjacent to the given border point
+attachImage :: BorderPoint -> Img -> Patch
+attachImage (BorderPoint outwardsIs (y, x)) img =
   case outwardsIs of
-    OutwardsIsUp -> Patch (y - rows img, x) img
-    OutwardsIsRight -> Patch (y, x) img
-    OutwardsIsDown -> Patch (y, x) img
-    OutwardsIsLeft -> Patch (y - rows img, x - cols img) img
+      OutwardsIsUp    -> Patch (y - rows img, x) img
+      OutwardsIsRight -> Patch (y, x + 1) img
+      OutwardsIsDown  -> Patch (y + 1, x) img
+      OutwardsIsLeft  -> Patch (y - rows img, x - cols img) img
 
 top :: Patch -> Int
 top (Patch (oy, _) _) = oy
