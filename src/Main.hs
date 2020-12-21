@@ -21,7 +21,7 @@ main = do
 
   imgs <- sequence $ readImageRGB VU <$> imgPaths
 
-  quilt <- makeQuilt 10000 5000 imgs
+  let quilt = makeQuilt 10000 5000 imgs
   writeImage "quilt.png" (toImage quilt)
 
   putStrLn "ok"

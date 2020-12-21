@@ -55,18 +55,16 @@ toImage :: Quilt -> Img
 toImage quilt = makeImage (dims quilt) (\(y, x) -> get' y x quilt)
 
 
-makeQuilt :: Int -> Int -> [Img] -> IO Quilt
+makeQuilt :: Int -> Int -> [Img] -> Quilt
 makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
   where
     popularity this = sum $ imgs <&> \that -> likeness (border this) (border that)
 
-    placeImgs :: [Img] -> Quilt -> IO Quilt
-    placeImgs [] quilt = return quilt
+    placeImgs :: [Img] -> Quilt -> Quilt
+    placeImgs [] quilt = quilt
     placeImgs (img:restImgs) quilt
-      | full quilt = return quilt
-      | otherwise = do
-        putStrLn "Placing image ..."
-        placeImg img quilt & placeImgs restImgs
+      | full quilt = quilt
+      | otherwise = placeImg img quilt & placeImgs restImgs
 
 -- Attempt to place a patch onto the quilt, matching borders as well as possible.
 -- If unable to fit the whole thing, returns the quilt unchanged.
