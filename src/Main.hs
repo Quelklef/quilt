@@ -10,7 +10,7 @@ import Graphics.Image.Types (VU(VU))
 import Control.DeepSeq (NFData, force)
 import Control.Exception (evaluate)
 
-import Quilt (makeQuilt, toImage, drawBorders)
+import Quilt (makeQuilt, toImage)
 import qualified Quilt
 
 -- Evaluate a value strictly
@@ -35,11 +35,11 @@ main = do
 
   putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
-  putStrLn "Drawing borders..."
-  withBorders <- now $ drawBorders quilt
+  --putStrLn "Drawing borders..."
+  --withBorders <- now $ Quilt.drawBorders quilt
 
   putStrLn "Writing to file..."
-  writeImage "quilt.png" (toImage $ withBorders)
+  writeImage "quilt.png" $ toImage quilt
 
   putStrLn "All done!"
 

@@ -50,10 +50,10 @@ top :: Patch -> Int
 top (Patch (oy, _) _) = oy
 
 right :: Patch -> Int
-right (Patch (_, ox) img) = ox + rows img
+right (Patch (_, ox) img) = ox + cols img - 1
 
 bottom :: Patch -> Int
-bottom (Patch (oy, _) img) = oy + cols img
+bottom (Patch (oy, _) img) = oy + rows img - 1
 
 left :: Patch -> Int
 left (Patch (_, ox) _) = ox
