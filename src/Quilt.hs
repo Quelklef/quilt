@@ -1,17 +1,17 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Quilt where
 
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
-import Data.List (sortOn)
 import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, borderPixels, Anchor(..), pixelLikeness)
+import Shared (Img, Px, firstJust, Anchor(..), pixelLikeness)
 import Patch (Patch(..))
 import qualified Patch
 
@@ -71,22 +71,11 @@ drawAnchors :: Quilt -> Quilt
 drawAnchors quilt = quilt { patches = anchorPatches ++ patches quilt }
   where
     thick = 4
-    redDot = makeImage (thick, thick) (const $ fromComponents (255, 0, 0))
+    redDot = makeImage (thick, thick) (const $ fromComponents (1.0, 0, 0))
     anchorPatches =
       patches quilt
       >>= Patch.anchors
       & fmap (\(Anchor _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
-
-makeQuilt :: Int -> Int -> [Img] -> Quilt
-makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
-  where
-    popularity this = sum $ imgs <&> \that -> likeness (borderPixels this) (borderPixels that)
-
-    placeImgs :: [Img] -> Quilt -> Quilt
-    placeImgs [] quilt = quilt
-    placeImgs (img:restImgs) quilt
-      | full quilt = quilt
-      | otherwise = placeImg img quilt & placeImgs restImgs
 
 -- Attempt to place a patch onto the quilt, matching borders as well as possible.
 -- If unable to fit the whole thing, returns the quilt unchanged.

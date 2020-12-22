@@ -4,14 +4,14 @@
 
 module Shared where
 
-import Data.Function (on, (&))
+import Data.Function (on)
 import Data.Functor ((<&>))
 import Data.Maybe (listToMaybe)
-import qualified Data.MultiSet as MultiSet
-import Data.MultiSet (MultiSet)
-import Graphics.Image (toLists, dims, index)
+import Graphics.Image (toLists, dims)
 import Graphics.Image.Interface (toComponents)
-import Graphics.Image.Types (Image, RGB, VU(..), Pixel)
+import Graphics.Image.Types (Image, RGB, VS, Pixel)
+import Graphics.Image.Interface (Elevator)
+import Foreign.Storable (Storable)
 
 firstJust :: [Maybe a] -> Maybe a
 firstJust [] = Nothing
@@ -32,12 +32,12 @@ instance Num n => Num (n, n) where
   fromInteger n = (fromInteger n, 0)
 
 type Px = Pixel RGB Double
-type Img = Image VU RGB Double
+type Img = Image VS RGB Double
 
 -- Ord instances needed for MultiSet usage
-instance Ord Px where
+instance (Storable e, Elevator e, Ord e) => Ord (Pixel RGB e) where
   compare = compare `on` toComponents
-instance Ord Img where
+instance (Storable e, Elevator e, Ord e) => Ord (Image VS RGB e)  where
   compare = compare `on` toLists
 
 data Anchor = Anchor AnchorDirection (Int, Int)
@@ -48,10 +48,6 @@ pixelLikeness px1 px2 =
   let (r1, g1, b1) = toComponents px1
       (r2, g2, b2) = toComponents px2
   in negate $ abs (r1 - r2) + abs (g1 - g2) + abs (b1 - b2)
-
-likeness :: MultiSet Px -> MultiSet Px -> Double
-likeness pxs1 pxs2 = sum $ MultiSet.map (highestLikenessIn pxs2) pxs1
-  where highestLikenessIn pxs px = maximum $ MultiSet.map (pixelLikeness px) pxs
 
 -- Border of an image, starting top-left and proceeding clockwise
 border :: Img -> [(Int, Int)]
@@ -65,5 +61,5 @@ border img = reverse $ [0 .. 2 * (height + width) - 4 - 1] <&> mkBorderPoint
       | idx < 2*height + 2*width - 3 = (0, width - (idx - height - width - height + 3))
       | otherwise = error "Broken code"
 
-borderPixels :: Img -> MultiSet Px
-borderPixels img = border img <&> index img <&> MultiSet.singleton & mconcat
+mapWithIndex :: (Int -> a -> b) -> [a] -> [b]
+mapWithIndex f xs = map (uncurry f) $ zip [0..] xs
