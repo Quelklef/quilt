@@ -15,15 +15,9 @@ import Shared (Img, Px, firstJust, likeness, borderPixels, BorderPoint(..), Bord
 import Patch (Patch(..))
 import qualified Patch
 
-import GHC.Generics (Generic)
-import Control.DeepSeq (NFData)
-
 import Debug.Trace
 
 data Quilt = Quilt { rows :: Int, cols :: Int, patches :: [Patch] }
-  deriving (Generic)
-
-instance NFData Quilt
 
 dims :: Quilt -> (Int, Int)
 dims = (,) <$> rows <*> cols

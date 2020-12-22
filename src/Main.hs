@@ -7,15 +7,8 @@ import Data.Foldable (for_)
 import Graphics.Image (readImageRGB, writeImage)
 import Graphics.Image.Types (VU(VU))
 
-import Control.DeepSeq (NFData, force)
-import Control.Exception (evaluate)
-
 import Quilt (makeQuilt, toImage)
 import qualified Quilt
-
--- Evaluate a value strictly
-now :: NFData a => a -> IO a
-now = evaluate . force
 
 main :: IO ()
 main = do
@@ -32,12 +25,11 @@ main = do
   putStrLn $ "Loaded " <> show (length imgs) <> " images."
 
   putStrLn "Quilting..."
-  quilt <- now $ makeQuilt 5000 2500 imgs
-
+  let quilt = makeQuilt 5000 2500 imgs
   putStrLn $ "Used " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
   --putStrLn "Drawing borders..."
-  --withBorders <- now $ Quilt.drawBorders quilt
+  --withBorders <- Quilt.drawBorders quilt
 
   putStrLn "Writing to file..."
   writeImage "quilt.png" $ toImage quilt

@@ -6,17 +6,11 @@ import Graphics.Image (rows, cols)
 
 import Data.Functor ((<&>))
 
-import GHC.Generics (Generic)
-import Control.DeepSeq (NFData)
-
 import Shared (Img, BorderPoint(..), OutwardsIs(..), Img, Border, BorderPoint(..))
 import qualified Shared
 
 -- An offset image
 data Patch = Patch (Int, Int) Img
-  deriving (Generic)
-
-instance NFData Patch
 
 offset ::  Patch -> (Int, Int)
 offset (Patch ost _) = ost

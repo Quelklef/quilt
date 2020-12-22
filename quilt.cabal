@@ -13,7 +13,6 @@ executable quilt
                      , directory
                      , containers
                      , multiset
-                     , deepseq
   other-modules:       Shared
                      , Patch
                      , Quilt
