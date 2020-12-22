@@ -120,8 +120,14 @@ placeImg img quilt
       <&> fromMaybe 0
       & sum
 
-    -- v TODO: probably super slow
-    adjacencies patch = filter (uncurry adjacent) $ Patch.border patch `times` (patches quilt >>= Patch.border)
+    adjacencies :: Patch -> [((Int, Int), (Int, Int))]
+    adjacencies patch = patches quilt >>= patchAdjacencies
+      where patchAdjacencies otherPatch =
+              if not (Patch.adjacent patch otherPatch)
+              then []
+              else Patch.border patch `times` Patch.border otherPatch
+                   & filter (uncurry adjacent)
+
     adjacent (y1, x1) (y2, x2) = 1 == abs (y2 - y1) + abs (x2 - x1)
     xs `times` ys = xs >>= \x -> ys >>= \y -> return (x, y)
 

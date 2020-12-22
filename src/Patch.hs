@@ -31,6 +31,15 @@ overlaps :: Patch -> Patch -> Bool
 overlaps p1 p2 = bottom p1 >= top p2 && top p1 <= bottom p2
               && right p1 >= left p2 && left p1 <= right p2
 
+adjacent :: Patch -> Patch -> Bool
+adjacent p1 p2 =
+  differBy1 (top p1) (bottom p2)
+  || differBy1 (bottom p1) (top p2)
+  || differBy1 (left p1) (right p2)
+  || differBy1 (right p1) (left p2)
+  where
+    differBy1 x y = abs (x - y) == 1
+
 anchors :: Patch -> [Anchor]
 anchors patch =
   [ Anchor ToUpRight (top patch - 1, left patch)
