@@ -4,14 +4,14 @@ module Quilt where
 
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe)
 import Data.List (sortOn)
 import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, likeness, borderPixels, BorderPoint(..), Border)
+import Shared (Img, Px, firstJust, likeness, borderPixels, Anchor(..), pixelLikeness)
 import Patch (Patch(..))
 import qualified Patch
 
@@ -59,56 +59,23 @@ get' point quilt = get point quilt & fromMaybe (fromComponents (0, 0, 0))
 toImage :: Quilt -> Img
 toImage quilt = makeImage (dims quilt) (\point -> get' point quilt)
 
-quiltBorder :: Quilt -> Border
-quiltBorder quilt =
-  do
-    patch <- patches quilt
-    borderPoint <- Patch.border patch
-    guard $ not . totallyEnclosed $ borderPoint
-    guard $ distFromEdge borderPoint > 0
-    return borderPoint
+anchors :: Quilt -> [Anchor]
+anchors quilt = patches quilt >>= Patch.anchors & filter (not . totallyEnclosed)
   where
-    totallyEnclosed (BorderPoint _ (y, x)) = all alreadyInQuilt neighbors
-      where
-        neighbors = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
-        alreadyInQuilt point = get point quilt /= Nothing
-
-    distFromEdge (BorderPoint _ (y, x)) = minimum [y, rows quilt - y - 1, x, cols quilt - x - 1]
-
--- Draws a box around the patches, for debugging purposes
--- Colors: Red=Up, Green=Right, Blue=Down, Yellow=Left
-drawBox :: Quilt -> Quilt
-drawBox quilt = quilt { patches = borderPatches ++ patches quilt }
-  where
-    thick = 8
-    halfk = thick `div` 2
-    borderPatches = patches quilt >>= \(Patch (yOffset, xOffset) img) ->
-      [ Patch (yOffset - halfk, xOffset) $ makeImage (thick, Img.cols img) (const $ fromComponents (255, 0, 0))
-      , Patch (yOffset, xOffset + Img.cols img - halfk) $ makeImage (Img.rows img, thick) (const $ fromComponents (0, 255, 0))
-      , Patch (yOffset + Img.rows img - halfk, xOffset) $ makeImage (thick, Img.cols img) (const $ fromComponents (0, 0, 255))
-      , Patch (yOffset - halfk, xOffset) $ makeImage (Img.rows img, thick) (const $ fromComponents (255, 255, 0))
-      ]
+    totallyEnclosed (Anchor _ point) = all alreadyInQuilt (neighbors point)
+    neighbors (y, x) = [(y-1, x), (y, x+1), (y+1, x), (y, x-1)]
+    alreadyInQuilt point = get point quilt /= Nothing
 
 -- Draws the patches' borders, for debugging purposes
-drawBorders :: Quilt -> Quilt
-drawBorders quilt = quilt { patches = borderPatches ++ patches quilt }
+drawAnchors :: Quilt -> Quilt
+drawAnchors quilt = quilt { patches = anchorPatches ++ patches quilt }
   where
-    thick = 16
+    thick = 4
     redDot = makeImage (thick, thick) (const $ fromComponents (255, 0, 0))
-    borderPatches =
+    anchorPatches =
       patches quilt
-      >>= Patch.border
-      & fmap (\(BorderPoint _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
-      & everyNth 200
-
-    everyNth :: Int -> [a] -> [a]
-    everyNth n xs = xs & mapWithIndex (\i x -> if i `mod` n == 0 then Just x else Nothing) & catMaybes
-
-    mapWithIndex :: (Int -> a -> b) -> [a] -> [b]
-    mapWithIndex = mapWithIndexAux 0
-      where
-        mapWithIndexAux _ _ [] = []
-        mapWithIndexAux i f (x:xs) = f i x : mapWithIndexAux (i + 1) f xs
+      >>= Patch.anchors
+      & fmap (\(Anchor _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
 
 makeQuilt :: Int -> Int -> [Img] -> Quilt
 makeQuilt height width imgs = placeImgs (sortOn popularity imgs) (Quilt width height {- <-- TODO: FIX SWAPEDNESS -} [])
@@ -133,18 +100,29 @@ placeImg img quilt
   -- attach to outside of existing quilt
   | otherwise =
       do
-        anchor <- quiltBorder quilt
+        anchor <- anchors quilt
+        guard $ inBounds anchor
         let patch = Patch.attachImage anchor img
         let isOverlapping = patches quilt & any (Patch.overlaps patch)
         guard $ not isOverlapping
         return patch
-      & maximumOn adjacencies
+      & maximumOn goodness
       & (\patch -> trace ("Patched: " <> show img) patch)
       & maybe quilt (\patch -> add patch quilt)
 
   where
-    adjacencies patch = length . filter (uncurry adjacent) $ quiltBorder quilt `times` Patch.border patch
-    adjacent (BorderPoint _ (y1, x1)) (BorderPoint _ (y2, x2)) = 1 == abs (y2 - y1) + abs (x2 - x1)
+    inBounds (Anchor _ (y, x)) = y >= 0 && y < cols quilt && x >= 0 && x < rows quilt
+
+    goodness :: Patch -> Double
+    goodness patch =
+      adjacencies patch
+      <&> (\(pt1, pt2) -> pixelLikeness <$> get pt1 quilt <*> get pt2 quilt)
+      <&> fromMaybe 0
+      & sum
+
+    -- v TODO: probably super slow
+    adjacencies patch = filter (uncurry adjacent) $ Patch.border patch `times` (patches quilt >>= Patch.border)
+    adjacent (y1, x1) (y2, x2) = 1 == abs (y2 - y1) + abs (x2 - x1)
     xs `times` ys = xs >>= \x -> ys >>= \y -> return (x, y)
 
     maximumOn :: Ord k => (v -> k) -> [v] -> Maybe v

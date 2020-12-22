@@ -2,11 +2,11 @@
 
 module Patch where
 
-import Graphics.Image (rows, cols)
-
 import Data.Functor ((<&>))
 
-import Shared (Img, BorderPoint(..), OutwardsIs(..), Img, Border, BorderPoint(..))
+import Graphics.Image (rows, cols)
+
+import Shared (Img, Anchor(..), AnchorDirection(..))
 import qualified Shared
 
 -- An offset image
@@ -24,21 +24,33 @@ xOffset = snd . offset
 image :: Patch -> Img
 image (Patch _ img) = img
 
-border :: Patch -> Border
-border patch = Shared.border (image patch) <&> (\(BorderPoint outwardsIs point) -> BorderPoint outwardsIs (offset patch + point))
+border :: Patch -> [(Int, Int)]
+border patch = Shared.border (image patch) <&> (+ offset patch)
 
 overlaps :: Patch -> Patch -> Bool
 overlaps p1 p2 = bottom p1 >= top p2 && top p1 <= bottom p2
               && right p1 >= left p2 && left p1 <= right p2
 
+anchors :: Patch -> [Anchor]
+anchors patch =
+  [ Anchor ToUpRight (top patch - 1, left patch)
+  , Anchor ToDownLeft (top patch, left patch - 1)
+  , Anchor ToUpLeft (top patch - 1, right patch)
+  , Anchor ToDownRight (top patch, right patch + 1)
+  , Anchor ToUpRight (bottom patch, right patch + 1)
+  , Anchor ToDownLeft (bottom patch + 1, right patch)
+  , Anchor ToDownRight (bottom patch + 1, left patch)
+  , Anchor ToUpLeft (bottom patch, left patch - 1)
+  ]
+
 -- Turns the given image into a patch adjacent to the given border point
-attachImage :: BorderPoint -> Img -> Patch
-attachImage (BorderPoint outwardsIs (y, x)) img =
-  case outwardsIs of
-      OutwardsIsUp    -> Patch (y - rows img, x) img
-      OutwardsIsRight -> Patch (y, x + 1) img
-      OutwardsIsDown  -> Patch (y + 1, x) img
-      OutwardsIsLeft  -> Patch (y - rows img, x - cols img) img
+attachImage :: Anchor -> Img -> Patch
+attachImage (Anchor direction (y, x)) img = Patch patchOffset img
+  where patchOffset = case direction of
+          ToUpRight -> (y - rows img + 1, x)
+          ToUpLeft -> (y - rows img + 1, x - cols img + 1)
+          ToDownRight -> (y, x)
+          ToDownLeft -> (y, x - cols img + 1)
 
 top :: Patch -> Int
 top (Patch (oy, _) _) = oy
