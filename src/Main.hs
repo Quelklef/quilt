@@ -86,11 +86,10 @@ main = do
                 Nothing -> return quilt
                 Just placed -> placeImgs paths placed
 
-      -- Shrink image s.t. it doesn't take up more than 1/15th of width or height
       shrinkImage :: Img -> Img
       shrinkImage img =
-        let maxAllowedWidth = (fromIntegral quiltWidth :: Double) / 15
-            maxAllowedHeight = (fromIntegral quiltWidth :: Double) / 15
+        let maxAllowedWidth = 500 --(fromIntegral quiltWidth :: Double) / 15
+            maxAllowedHeight = 500 --(fromIntegral quiltWidth :: Double) / 15
             widthPercent = fromIntegral (Img.cols img) / maxAllowedWidth
             heightPercent = fromIntegral (Img.rows img) / maxAllowedHeight
             worstPercent = max widthPercent heightPercent
