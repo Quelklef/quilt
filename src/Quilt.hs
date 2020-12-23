@@ -5,7 +5,7 @@ module Quilt where
 
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
@@ -104,9 +104,9 @@ placeImg img quilt
 
     goodness :: Patch -> Double
     goodness patch =
+      let quiltWithPatch = add patch quilt in
       adjacencies patch
-      <&> (\(pt1, pt2) -> pixelLikeness <$> get pt1 quilt <*> get pt2 quilt)
-      <&> fromMaybe 0
+      & fmap (\(pt1, pt2) -> fromJust $ pixelLikeness <$> get pt1 quiltWithPatch <*> get pt2 quiltWithPatch)
       & sum
 
     adjacencies :: Patch -> [((Int, Int), (Int, Int))]

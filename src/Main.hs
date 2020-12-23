@@ -51,7 +51,7 @@ main = do
 
   putStrLn "Quilting..."
   quilt <- makeQuilt (5000, 2500) table
-  putStrLn $ "Used " <> show (length $ Quilt.patches quilt) <> " image(s)"
+  putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
   --putStrLn "Drawing borders..."
   --withBorders <- Quilt.drawBorders quilt
