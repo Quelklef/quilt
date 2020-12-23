@@ -47,7 +47,7 @@ pixelLikeness :: Px -> Px -> Double
 pixelLikeness px1 px2 =
   let (r1, g1, b1) = toComponents px1
       (r2, g2, b2) = toComponents px2
-  in negate $ abs (r1 - r2) + abs (g1 - g2) + abs (b1 - b2)
+  in 1 / (abs (r1 - r2) + abs (g1 - g2) + abs (b1 - b2))
 
 -- Border of an image, starting top-left and proceeding clockwise
 border :: Img -> [(Int, Int)]
