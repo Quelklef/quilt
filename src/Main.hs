@@ -13,7 +13,9 @@ import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
 import Graphics.Image.Types (VS)
 import Graphics.Image (Image, RGB, readImage, writeImage, index)
+import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents, toComponents)
+import Graphics.Image.Processing (scale, Border(Edge))
 
 import Shared (Img, Px, mapWithIndex)
 import qualified Shared
@@ -62,9 +64,10 @@ main = do
  where
   startsWith = isPrefixOf
 
-  makeQuilt (height, width) table =
+  makeQuilt :: (Int, Int) -> Map String (MultiSet Thixel) -> IO Quilt
+  makeQuilt (quiltHeight, quiltWidth) table =
       placeImgs (sortOn popularity (Map.keys table))
-                (Quilt width height [] {- <-- TODO: FIX WIDTH/HEIGHT SWAPEDNESS -})
+                (Quilt quiltWidth quiltHeight [] {- <-- TODO: FIX WIDTH/HEIGHT SWAPEDNESS -})
     where
       popularity this = sum $ Map.keys table <&> \that -> likeness (lookupM this table) (lookupM that table)
 
@@ -77,7 +80,23 @@ main = do
           eImg <- readImage path :: IO (Either String (Image VS RGB Double))
           case eImg of
             Left err -> do { putStrLn $ "Failed to read image " <> path <> ": " <> err; placeImgs paths quilt }
-            Right img -> placeImgs paths (Quilt.placeImg img quilt)
+            Right img ->
+              let mPlaced = Quilt.placeImg (shrinkImage img) quilt
+              in case mPlaced of
+                Nothing -> return quilt
+                Just placed -> placeImgs paths placed
+
+      -- Shrink image s.t. it doesn't take up more than 1/15th of width or height
+      shrinkImage :: Img -> Img
+      shrinkImage img =
+        let maxAllowedWidth = (fromIntegral quiltWidth :: Double) / 15
+            maxAllowedHeight = (fromIntegral quiltWidth :: Double) / 15
+            widthPercent = fromIntegral (Img.cols img) / maxAllowedWidth
+            heightPercent = fromIntegral (Img.rows img) / maxAllowedHeight
+            worstPercent = max widthPercent heightPercent
+        in if worstPercent > 1
+           then scale Img.Bilinear Edge (1 / worstPercent, 1 / worstPercent) img
+           else img
 
   lookupM :: (Ord k, Monoid v) => k -> Map k v -> v
   lookupM k m = Map.lookup k m & fromMaybe mempty

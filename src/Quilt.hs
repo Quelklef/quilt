@@ -78,13 +78,13 @@ drawAnchors quilt = quilt { patches = anchorPatches ++ patches quilt }
       & fmap (\(Anchor _ point) -> Patch (point - (thick `div` 2, thick `div` 2)) redDot)
 
 -- Attempt to place a patch onto the quilt, matching borders as well as possible.
--- If unable to fit the whole thing, returns the quilt unchanged.
-placeImg :: Img -> Quilt -> Quilt
+-- If unable to fit the whole thing, returns Nothing
+placeImg :: Img -> Quilt -> Maybe Quilt
 placeImg img quilt
   -- place in center
   | empty quilt = let oy = (rows quilt - Img.rows img) `div` 2
                       ox = (cols quilt - Img.cols img) `div` 2
-                  in add (Patch (oy, ox) img) quilt
+                  in Just $ add (Patch (oy, ox) img) quilt
 
   -- attach to outside of existing quilt
   | otherwise =
@@ -96,8 +96,8 @@ placeImg img quilt
         guard $ not isOverlapping
         return patch
       & maximumOn goodness
-      & (\patch -> trace ("Patched: " <> show img) patch)
-      & maybe quilt (\patch -> add patch quilt)
+      <&> (\patch -> trace ("Patched: " <> show img) patch)
+      <$> (\patch -> add patch quilt)
 
   where
     inBounds (Anchor _ (y, x)) = y >= 0 && y < cols quilt && x >= 0 && x < rows quilt
