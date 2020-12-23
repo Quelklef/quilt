@@ -63,3 +63,14 @@ border img = reverse $ [0 .. 2 * (height + width) - 4 - 1] <&> mkBorderPoint
 
 mapWithIndex :: (Int -> a -> b) -> [a] -> [b]
 mapWithIndex f xs = map (uncurry f) $ zip [0..] xs
+
+maximumOn :: Ord k => (v -> k) -> [v] -> Maybe v
+maximumOn _ [] = Nothing
+maximumOn _ [x] = Just x
+maximumOn key (x:y:zs) = maximumOnAux key (maxOn key x y) zs
+  where
+    maximumOnAux :: Ord k => (v -> k) -> v -> [v] -> Maybe v
+    maximumOnAux _ hi [] = Just hi
+    maximumOnAux key' hi (a:as) = maximumOnAux key' (maxOn key' a hi) as
+
+    maxOn key' a b = if key' a > key' b then a else b

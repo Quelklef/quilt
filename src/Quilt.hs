@@ -11,7 +11,7 @@ import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, Anchor(..), pixelLikeness)
+import Shared (Img, Px, firstJust, Anchor(..), pixelLikeness, maximumOn)
 import Patch (Patch(..))
 import qualified Patch
 
@@ -119,14 +119,3 @@ placeImg img quilt
 
     adjacent (y1, x1) (y2, x2) = 1 == abs (y2 - y1) + abs (x2 - x1)
     xs `times` ys = xs >>= \x -> ys >>= \y -> return (x, y)
-
-    maximumOn :: Ord k => (v -> k) -> [v] -> Maybe v
-    maximumOn _ [] = Nothing
-    maximumOn _ [x] = Just x
-    maximumOn key (x:y:zs) = maximumOnAux key (maxOn key x y) zs
-      where
-        maximumOnAux :: Ord k => (v -> k) -> v -> [v] -> Maybe v
-        maximumOnAux _ hi [] = Just hi
-        maximumOnAux key' hi (a:as) = maximumOnAux key' (maxOn key' a hi) as
-
-        maxOn key' a b = if key' a > key' b then a else b
