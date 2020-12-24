@@ -89,6 +89,7 @@ placeImg img quilt
   -- attach to outside of existing quilt
   | otherwise =
       do
+        return () & trace ((show . length $ anchors quilt) <> " anchors")
         anchor <- anchors quilt
         guard $ inBounds anchor
         let patch = Patch.attachImage anchor img
