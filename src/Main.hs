@@ -81,21 +81,10 @@ main = do
           case eImg of
             Left err -> do { putStrLn $ "Failed to read image " <> path <> ": " <> err; placeImgs paths quilt }
             Right img ->
-              let mPlaced = Quilt.placeImg (shrinkImage img) quilt
+              let mPlaced = Quilt.placeImg img quilt
               in case mPlaced of
                 Nothing -> return quilt
                 Just placed -> placeImgs paths placed
-
-      shrinkImage :: Img -> Img
-      shrinkImage img =
-        let maxAllowedWidth = 500 --(fromIntegral quiltWidth :: Double) / 15
-            maxAllowedHeight = 500 --(fromIntegral quiltWidth :: Double) / 15
-            widthPercent = fromIntegral (Img.cols img) / maxAllowedWidth
-            heightPercent = fromIntegral (Img.rows img) / maxAllowedHeight
-            worstPercent = max widthPercent heightPercent
-        in if worstPercent > 1
-           then scale Img.Bilinear Edge (1 / worstPercent, 1 / worstPercent) img
-           else img
 
   lookupM :: (Ord k, Monoid v) => k -> Map k v -> v
   lookupM k m = Map.lookup k m & fromMaybe mempty
