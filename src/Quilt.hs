@@ -1,17 +1,18 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 
 module Quilt where
 
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromMaybe, fromJust, catMaybes)
 import Control.Monad (guard)
 import Graphics.Image (maybeIndex, makeImage)
 import qualified Graphics.Image as Img
 import Graphics.Image.Interface (fromComponents)
 
-import Shared (Img, Px, firstJust, Anchor(..), pixelLikeness, maximumOn)
+import Shared (Img, Px, firstJust, Anchor(..), pixelLikeness, maximumOn, find)
 import Patch (Patch(..))
 import qualified Patch
 
@@ -106,17 +107,7 @@ placeImg img quilt
     goodness :: Patch -> Double
     goodness patch =
       let quiltWithPatch = add patch quilt in
-      adjacencies patch
+      patches quilt
+      >>= Patch.adjacencies patch
       & fmap (\(pt1, pt2) -> fromJust $ pixelLikeness <$> get pt1 quiltWithPatch <*> get pt2 quiltWithPatch)
       & sum
-
-    adjacencies :: Patch -> [((Int, Int), (Int, Int))]
-    adjacencies patch = patches quilt >>= patchAdjacencies
-      where patchAdjacencies otherPatch =
-              if not (Patch.adjacent patch otherPatch)
-              then []
-              else Patch.border patch `times` Patch.border otherPatch
-                   & filter (uncurry adjacent)
-
-    adjacent (y1, x1) (y2, x2) = 1 == abs (y2 - y1) + abs (x2 - x1)
-    xs `times` ys = xs >>= \x -> ys >>= \y -> return (x, y)

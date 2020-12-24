@@ -7,7 +7,7 @@ module Shared where
 import Data.Function (on)
 import Data.Functor ((<&>))
 import Data.Maybe (listToMaybe)
-import Graphics.Image (toLists, dims)
+import Graphics.Image (toLists, dims, cols, rows)
 import Graphics.Image.Interface (toComponents)
 import Graphics.Image.Types (Image, RGB, VS, Pixel)
 import Graphics.Image.Interface (Elevator)
@@ -41,7 +41,19 @@ instance (Storable e, Elevator e, Ord e) => Ord (Image VS RGB e)  where
   compare = compare `on` toLists
 
 data Anchor = Anchor AnchorDirection (Int, Int)
+  deriving (Eq, Show)
+
 data AnchorDirection = ToDownRight | ToDownLeft | ToUpLeft | ToUpRight
+  deriving (Eq, Show)
+
+data Direction = North | East | South | West
+  deriving (Eq, Show)
+
+opp :: Direction -> Direction
+opp North = South
+opp East = West
+opp South = North
+opp West = East
 
 pixelLikeness :: Px -> Px -> Double
 pixelLikeness px1 px2 =
@@ -61,6 +73,15 @@ border img = reverse $ [0 .. 2 * (height + width) - 4 - 1] <&> mkBorderPoint
       | idx < 2*height + 2*width - 3 = (0, width - (idx - height - width - height + 3))
       | otherwise = error "Broken code"
 
+-- Return the border for one side of an image
+-- Pixel enumeration is *not* clockwise!
+-- For North/South, it's left-to-right; for West/East, it's top-to-bottom
+side :: Direction -> Img -> [(Int, Int)]
+side North img = [0 .. cols img - 1] <&> (\i -> (0, i))
+side South img = [0 .. cols img - 1] <&> (\i -> (rows img - 1, i))
+side East  img = [0 .. rows img - 1] <&> (\i -> (i, cols img - 1))
+side West  img = [0 .. rows img - 1] <&> (\i -> (i, 0))
+
 mapWithIndex :: (Int -> a -> b) -> [a] -> [b]
 mapWithIndex f xs = map (uncurry f) $ zip [0..] xs
 
@@ -74,3 +95,7 @@ maximumOn key (x:y:zs) = maximumOnAux key (maxOn key x y) zs
     maximumOnAux key' hi (a:as) = maximumOnAux key' (maxOn key' a hi) as
 
     maxOn key' a b = if key' a > key' b then a else b
+
+find :: (a -> Bool) -> [a] -> Maybe a
+find _ [] = Nothing
+find cond (x:xs) = if cond x then Just x else find cond xs
