@@ -53,11 +53,11 @@ main = do
   quilt <- makeQuilt (5000, 2500) table
   putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
-  putStrLn "Drawing borders..."
-  let withAnchors = Quilt.drawAnchors quilt
+  --putStrLn "Drawing anchors..."
+  --let withAnchors = Quilt.drawAnchors quilt
 
   putStrLn "Writing to file..."
-  writeImage "quilt.png" $ toImage withAnchors
+  writeImage "quilt.png" $ toImage quilt
 
   putStrLn "All done!"
 
@@ -73,18 +73,16 @@ main = do
 
       placeImgs :: [FilePath] -> Quilt -> IO Quilt
       placeImgs [] quilt = return quilt
-      placeImgs (path:paths) quilt
-        | Quilt.full quilt = return quilt
-        | otherwise = do
-          putStrLn $ "Sewing; " <> show (length paths) <> " left (now: " <> path <> ")"
-          eImg <- readImage path :: IO (Either String (Image VS RGB Double))
-          case eImg of
-            Left err -> do { putStrLn $ "Failed to read image " <> path <> ": " <> err; placeImgs paths quilt }
-            Right img ->
-              let mPlaced = Quilt.placeImg img quilt
-              in case mPlaced of
-                Nothing -> return quilt
-                Just placed -> placeImgs paths placed
+      placeImgs (path:paths) quilt = do
+        putStrLn $ "Sewing; " <> show (length paths) <> " left (now: " <> path <> ")"
+        eImg <- readImage path :: IO (Either String (Image VS RGB Double))
+        case eImg of
+          Left err -> do { putStrLn $ "Failed to read image " <> path <> ": " <> err; placeImgs paths quilt }
+          Right img ->
+            let mPlaced = Quilt.placeImg img quilt
+            in case mPlaced of
+              Nothing -> return quilt
+              Just placed -> placeImgs paths placed
 
   lookupM :: (Ord k, Monoid v) => k -> Map k v -> v
   lookupM k m = Map.lookup k m & fromMaybe mempty
