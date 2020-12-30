@@ -50,7 +50,7 @@ main = do
            <&> Map.fromList
 
   putStrLn "Quilting..."
-  quilt <- makeQuilt (5000, 2500) table
+  quilt <- makeQuilt (1920, 1080) table
   putStrLn $ "Using " <> show (length $ Quilt.patches quilt) <> " image(s)"
 
   --putStrLn "Drawing anchors..."
